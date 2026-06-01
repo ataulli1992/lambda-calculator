@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>λ-Калькулятор | Пуассон & Dixon-Coles</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0a0e14;
+            --surface: #131820;
+            --surface-raised: #1a1f2b;
+            --border: #252b36;
+            --border-light: #2e3540;
+            --text: #b4c0d0;
+            --text-secondary: #6b7385;
+            --text-primary: #e2e8f0;
+            --accent: #7aa2f7;
+            --accent-soft: rgba(122, 162, 247, 0.12);
+            --green: #9ece6a;
+            --green-soft: rgba(158, 206, 106, 0.12);
+            --red: #f7768e;
+            --red-soft: rgba(247, 118, 142, 0.10);
+            --amber: #e0af68;
+            --amber-soft: rgba(224, 175, 104, 0.12);
+            --radius: 10px;
+            --radius-sm: 6px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 24px 16px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        header h1 {
+            font-size: 1.7em;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
+        }
+        header p {
+            color: var(--text-secondary);
+            font-size: 0.82em;
+            margin-top: 2px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px 20px;
+            margin-bottom: 14px;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        }
+        .card h2 {
+            font-size: 1.0em;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            letter-spacing: -0.2px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .card h3 {
+            font-size: 0.82em;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .col-2 {
+            flex: 1 1 calc(50% - 6px);
+            min-width: 260px;
+        }
+        .col-3 {
+            flex: 1 1 calc(33.33% - 8px);
+            min-width: 150px;
+        }
+        .col-4 {
+            flex: 1 1 calc(25% - 9px);
+            min-width: 120px;
+        }
+
+        .input-group {
+            margin-bottom: 4px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 0.7em;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 9px 10px;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 0.85em;
+            text-align: center;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+        .input-group input.result-field {
+            background: var(--accent-soft);
+            border-color: rgba(122, 162, 247, 0.25);
+            color: var(--accent);
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+        .input-group input.highlight-field {
+            background: var(--green-soft);
+            border-color: rgba(158, 206, 106, 0.25);
+            color: var(--green);
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.82em;
+            transition: all 0.2s;
+            width: 100%;
+            letter-spacing: 0.2px;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #0a0e14;
+        }
+        .btn-primary:hover {
+            background: #8db0f9;
+            box-shadow: 0 4px 12px rgba(122, 162, 247, 0.25);
+        }
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.72em;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            width: auto;
+        }
+        .btn-sm:hover {
+            border-color: var(--border-light);
+            color: var(--text);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8em;
+        }
+        th {
+            text-align: left;
+            color: var(--text-secondary);
+            font-weight: 500;
+            padding: 5px 6px;
+            border-bottom: 1px solid var(--border);
+            text-transform: uppercase;
+            font-size: 0.75em;
+            letter-spacing: 0.3px;
+        }
+        td {
+            padding: 6px 6px;
+            border-bottom: 1px solid rgba(37, 43, 54, 0.5);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 20px;
+            font-size: 0.7em;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+        }
+        .badge-green {
+            background: var(--green-soft);
+            color: var(--green);
+        }
+        .badge-red {
+            background: var(--red-soft);
+            color: var(--red);
+        }
+        .badge-blue {
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+        .badge-amber {
+            background: var(--amber-soft);
+            color: var(--amber);
+        }
+
+        .value-box {
+            padding: 4px 8px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.72em;
+            display: inline-block;
+            letter-spacing: 0.2px;
+        }
+        .value-positive {
+            background: var(--green-soft);
+            color: var(--green);
+            border: 1px solid rgba(158, 206, 106, 0.2);
+        }
+        .value-negative {
+            background: var(--red-soft);
+            color: var(--red);
+            border: 1px solid rgba(247, 118, 142, 0.2);
+        }
+        .value-neutral {
+            background: var(--amber-soft);
+            color: var(--amber);
+            border: 1px solid rgba(224, 175, 104, 0.2);
+        }
+
+        .text-green {
+            color: var(--green);
+            font-weight: 600;
+        }
+        .text-red {
+            color: var(--red);
+            font-weight: 600;
+        }
+        .text-accent {
+            color: var(--accent);
+            font-weight: 600;
+        }
+        .muted {
+            color: var(--text-secondary);
+            font-size: 0.72em;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 14px 0;
+        }
+        .flow-arrow {
+            text-align: center;
+            color: var(--accent);
+            font-size: 1.1em;
+            margin: 2px 0;
+            user-select: none;
+            opacity: 0.5;
+        }
+
+        /* Тепловая карта */
+        .heatmap {
+            display: grid;
+            grid-template-columns: 32px repeat(7, 1fr);
+            gap: 3px;
+            font-size: 0.78em;
+            align-items: center;
+        }
+        .heatmap-cell {
+            text-align: center;
+            padding: 10px 3px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 0.82em;
+            min-width: 38px;
+        }
+        .heatmap-label {
+            color: var(--text-secondary);
+            text-align: center;
+            font-size: 0.75em;
+            font-weight: 600;
+        }
+
+        /* Точные счета */
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+            gap: 6px;
+        }
+        .score-item {
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 8px 6px;
+            text-align: center;
+        }
+        .score-item .score-text {
+            font-size: 1.05em;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .score-item .score-prob {
+            font-size: 0.75em;
+            color: var(--accent);
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        /* Симуляция лесенки */
+        .ladder-sim {
+            background: var(--surface-raised);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius);
+            padding: 14px;
+            text-align: center;
+        }
+        .ladder-sim .big-number {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: -0.5px;
+        }
+
+        /* Исходы */
+        .outcome-block {
+            text-align: center;
+            padding: 8px 4px;
+            background: var(--surface-raised);
+            border-radius: var(--radius-sm);
+        }
+        .outcome-block .outcome-pct {
+            font-size: 1.15em;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .outcome-block .outcome-odds {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+        }
+
+        .chart-container {
+            height: 210px;
+        }
+
+        @media (max-width: 700px) {
+            .col-2,
+            .col-3,
+            .col-4 {
+                flex: 1 1 100%;
+            }
+            .flow-arrow {
+                display: none;
+            }
+            .heatmap {
+                font-size: 0.65em;
+                grid-template-columns: 24px repeat(7, 1fr);
+            }
+            .heatmap-cell {
+                padding: 7px 1px;
+                font-size: 0.7em;
+                min-width: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <header>
+            <h1>λ-Калькулятор</h1>
+            <p>Пуассон & Dixon-Coles &nbsp;·&nbsp; Value &nbsp;·&nbsp; Келли &nbsp;·&nbsp; Точные счета &nbsp;·&nbsp; Лесенка 3×2</p>
+        </header>
+
+        <!-- БЛОК 1: СЫРАЯ СТАТИСТИКА -->
+        <div class="card">
+            <h2>📋 Сырая статистика</h2>
+            <div class="row">
+                <div class="col-2">
+                    <h3>🏠 Хозяева</h3>
+                    <div class="row">
+                        <div class="col-3"><div class="input-group"><label>Матчей дома</label><input type="number" id="homeMatches" value="14" min="1" oninput="autoCalculate()"></div></div>
+                        <div class="col-3"><div class="input-group"><label>Забито дома</label><input type="number" id="homeScoredTotal" value="29" min="0" oninput="autoCalculate()"></div></div>
+                        <div class="col-3"><div class="input-group"><label>Пропущено дома</label><input type="number" id="homeConcededTotal" value="10" min="0" oninput="autoCalculate()"></div></div>
+                    </div>
+                </div>
+                <div class="col-2">
+                    <h3>🚌 Гости</h3>
+                    <div class="row">
+                        <div class="col-3"><div class="input-group"><label>Матчей в гостях</label><input type="number" id="awayMatches" value="13" min="1" oninput="autoCalculate()"></div></div>
+                        <div class="col-3"><div class="input-group"><label>Забито в гостях</label><input type="number" id="awayScoredTotal" value="14" min="0" oninput="autoCalculate()"></div></div>
+                        <div class="col-3"><div class="input-group"><label>Пропущено в гостях</label><input type="number" id="awayConcededTotal" value="21" min="0" oninput="autoCalculate()"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flow-arrow">↓</div>
+
+        <!-- БЛОК 2: СРЕДНИЕ -->
+        <div class="card">
+            <h2>📊 Средние за матч</h2>
+            <div class="row">
+                <div class="col-2">
+                    <h3>🏠 Хозяева (дома)</h3>
+                    <div class="row">
+                        <div class="col-2"><div class="input-group"><label>Забито</label><input type="number" id="homeScoredAvg" class="result-field" value="2.07" step="0.01" oninput="autoCalculate()"></div></div>
+                        <div class="col-2"><div class="input-group"><label>Пропущено</label><input type="number" id="homeConcededAvg" class="result-field" value="0.71" step="0.01" oninput="autoCalculate()"></div></div>
+                    </div>
+                </div>
+                <div class="col-2">
+                    <h3>🚌 Гости (в гостях)</h3>
+                    <div class="row">
+                        <div class="col-2"><div class="input-group"><label>Забито</label><input type="number" id="awayScoredAvg" class="result-field" value="1.08" step="0.01" oninput="autoCalculate()"></div></div>
+                        <div class="col-2"><div class="input-group"><label>Пропущено</label><input type="number" id="awayConcededAvg" class="result-field" value="1.62" step="0.01" oninput="autoCalculate()"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flow-arrow">↓</div>
+
+        <!-- БЛОК 3: λ + НАСТРОЙКИ -->
+        <div class="card">
+            <h2>🧮 Параметры модели</h2>
+            <div class="row">
+                <div class="col-2">
+                    <div class="row">
+                        <div class="col-2"><div class="input-group"><label>Средний тотал лиги</label><input type="number" id="leagueAvg" value="2.80" step="0.01" min="0" oninput="autoCalculate()"></div></div>
+                        <div class="col-2"><div class="input-group"><label>Преимущество дома</label><input type="number" id="homeAdvantage" value="1.15" step="0.01" min="0.5" max="2" oninput="autoCalculate()"></div></div>
+                    </div>
+                    <div class="row" style="margin-top: 4px;">
+                        <div class="col-2"><div class="input-group"><label>ρ Dixon-Coles</label><input type="number" id="rho" value="0.10" step="0.01" min="-0.2" max="0.5" oninput="autoCalculate()"></div></div>
+                        <div class="col-2"><div class="input-group"><label>Банк (Келли)</label><input type="number" id="kellyBank" value="5000" step="100" min="0" oninput="autoCalculate()"></div></div>
+                    </div>
+                </div>
+                <div class="col-2">
+                    <h3>🎰 Коэффициенты БК</h3>
+                    <div class="row">
+                        <div class="col-2"><div class="input-group"><label>ТБ 2.5</label><input type="number" id="bkOver25" step="0.01" placeholder="1.85" oninput="autoCalculate()"></div></div>
+                        <div class="col-2"><div class="input-group"><label>ТМ 3.5</label><input type="number" id="bkUnder35" step="0.01" placeholder="1.40" oninput="autoCalculate()"></div></div>
+                    </div>
+                    <div class="row" style="margin-top: 4px;">
+                        <div class="col-2"><div class="input-group"><label>Обе забьют</label><input type="number" id="bkBtts" step="0.01" placeholder="1.80" oninput="autoCalculate()"></div></div>
+                        <div class="col-2"><div class="input-group"><label>1X</label><input type="number" id="bk1x" step="0.01" placeholder="1.50" oninput="autoCalculate()"></div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="divider"></div>
+            <div class="row">
+                <div class="col-2"><div class="input-group"><label>λ хозяев (авто)</label><input type="number" id="lamHomeResult" class="highlight-field" value="1.85" step="0.01" oninput="calculateAll()"></div></div>
+                <div class="col-2"><div class="input-group"><label>λ гостей (авто)</label><input type="number" id="lamAwayResult" class="highlight-field" value="0.90" step="0.01" oninput="calculateAll()"></div></div>
+            </div>
+        </div>
+
+        <div class="flow-arrow">↓</div>
+
+        <!-- БЛОК 4: ДВЕ МОДЕЛИ -->
+        <div class="row">
+            <div class="col-2">
+                <div class="card">
+                    <h2>📐 Пуассон</h2>
+                    <table>
+                        <thead><tr><th>Рынок</th><th>P</th><th>Кф</th><th>БК</th><th>Value</th><th>Келли</th></tr></thead>
+                        <tbody id="poissonTotalsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col-2">
+                <div class="card">
+                    <h2>📐 Dixon-Coles</h2>
+                    <table>
+                        <thead><tr><th>Рынок</th><th>P</th><th>Кф</th><th>БК</th><th>Value</th><th>Келли</th></tr></thead>
+                        <tbody id="dcTotalsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- БЛОК 5: ТЕПЛОВАЯ КАРТА + ТОЧНЫЕ СЧЕТА -->
+        <div class="row">
+            <div class="col-2">
+                <div class="card">
+                    <h2>🔥 Тепловая карта счетов</h2>
+                    <p class="muted" style="margin-bottom:10px;">Строки — голы хозяев, столбцы — голы гостей. Ярче = вероятнее.</p>
+                    <div id="heatmapContainer"></div>
+                </div>
+            </div>
+            <div class="col-2">
+                <div class="card">
+                    <h2>⚽ Точные счета (Dixon-Coles)</h2>
+                    <p class="muted" style="margin-bottom:10px;">Топ-12 наиболее вероятных исходов</p>
+                    <div class="score-grid" id="exactScoresGrid"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- БЛОК 6: ИСХОДЫ + ЛЕСЕНКА -->
+        <div class="row">
+            <div class="col-2">
+                <div class="card">
+                    <h2>📊 Исходы матча</h2>
+                    <div class="row">
+                        <div class="col-3"><div class="outcome-block"><p class="muted">П1</p><p class="outcome-pct" id="outcomeP1">—</p><p class="outcome-odds" id="outcomeOddsP1">—</p></div></div>
+                        <div class="col-3"><div class="outcome-block"><p class="muted">Ничья</p><p class="outcome-pct" id="outcomeX">—</p><p class="outcome-odds" id="outcomeOddsX">—</p></div></div>
+                        <div class="col-3"><div class="outcome-block"><p class="muted">П2</p><p class="outcome-pct" id="outcomeP2">—</p><p class="outcome-odds" id="outcomeOddsP2">—</p></div></div>
+                    </div>
+                    <div class="row" style="text-align:center; margin-top:8px;">
+                        <div class="col-2"><span class="muted">1X: </span><span class="text-accent" id="outcome1X">—</span></div>
+                        <div class="col-2"><span class="muted">X2: </span><span class="text-accent" id="outcomeX2">—</span></div>
+                    </div>
+                    <div class="divider"></div>
+                    <h3>📈 Рынки для стратегии</h3>
+                    <table>
+                        <thead><tr><th>Рынок</th><th>P (DC)</th><th>Кф</th><th>БК</th><th>Value</th><th>Вердикт</th></tr></thead>
+                        <tbody id="marketsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col-2">
+                <div class="card">
+                    <div class="ladder-sim">
+                        <h3 style="color:var(--text-secondary);margin-bottom:8px;">🎲 Симуляция лесенки (3 шага)</h3>
+                        <div class="row">
+                            <div class="col-2"><p class="muted">P(шага)</p><p class="big-number" id="stepProb">—</p></div>
+                            <div class="col-2"><p class="muted">P(лесенки)</p><p class="big-number" id="ladderProb">—</p></div>
+                        </div>
+                        <div id="cycleSimContainer" style="margin-top:10px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ГРАФИК -->
+        <div class="card">
+            <h2>📈 Распределение тотала</h2>
+            <div class="chart-container"><canvas id="totalsChart"></canvas></div>
+        </div>
+
+        <!-- ИСТОРИЯ -->
+        <div class="card">
+            <h2>📜 История</h2>
+            <table>
+                <thead><tr><th>Время</th><th>λ₁</th><th>λ₂</th><th>ТБ2.5(P)</th><th>ТБ2.5(DC)</th><th>ОЗ</th><th>1X</th><th>Value</th></tr></thead>
+                <tbody id="historyTable"></tbody>
+            </table>
+            <button class="btn btn-sm" onclick="clearHistory()" style="margin-top:8px;">Очистить</button>
+        </div>
+
+    </div>
+
+    <script>
+        // ============================================================
+        // МАТЕМАТИЧЕСКОЕ ЯДРО
+        // ============================================================
+        const factorial = n => (n <= 1) ? 1 : n * factorial(n - 1);
+        const poissonProb = (lam, k) => Math.pow(lam, k) * Math.exp(-lam) / factorial(k);
+
+        function dixonColesCorrection(i, j, lamH, lamA, rho) {
+            if (i === 0 && j === 0) return 1 - lamH * lamA * rho;
+            if (i === 0 && j === 1) return 1 + lamH * rho;
+            if (i === 1 && j === 0) return 1 + lamA * rho;
+            if (i === 1 && j === 1) return 1 - rho;
+            return 1.0;
+        }
+
+        function buildMatrix(lamHome, lamAway, model, rho) {
+            const maxG = 8;
+            let matrix = {},
+                total = 0;
+            for (let i = 0; i <= maxG; i++) {
+                for (let j = 0; j <= maxG; j++) {
+                    let p = poissonProb(lamHome, i) * poissonProb(lamAway, j);
+                    if (model === 'dixoncoles') p *= dixonColesCorrection(i, j, lamHome, lamAway, rho);
+                    matrix[`${i}:${j}`] = p;
+                    total += p;
+                }
+            }
+            for (let k in matrix) matrix[k] /= total;
+            return matrix;
+        }
+
+        function getTotals(matrix) {
+            let totals = {};
+            for (let s in matrix) { let [i, j] = s.split(':').map(Number);
+                totals[i + j] = (totals[i + j] || 0) + matrix[s]; }
+            return totals;
+        }
+        const overProb = (t, line) => Object.entries(t).reduce((sum, [k, v]) => sum + (parseInt(k) > line ? v : 0),
+            0);
+        const underProb = (t, line) => Object.entries(t).reduce((sum, [k, v]) => sum + (parseInt(k) < line ? v :
+            0), 0);
+
+        function bttsProb(matrix) { let p = 0; for (let s in matrix) { let [i, j] = s.split(':').map(Number); if (i >
+                0 && j > 0) p += matrix[s]; } return p; }
+
+        function oneXProb(matrix) { let p = 0; for (let s in matrix) { let [i, j] = s.split(':').map(Number); if (i >=
+                j) p += matrix[s]; } return p; }
+        const fairOdds = p => p > 0 ? (1 / p).toFixed(2) : '—';
+
+        function calcValue(modelProb, bkOdds) {
+            if (!bkOdds || bkOdds <= 0 || modelProb <= 0) return null;
+            const implied = 1 / bkOdds;
+            const edge = modelProb - implied;
+            const roi = (bkOdds * modelProb - 1) * 100;
+            return { edgePercent: parseFloat((edge * 100).toFixed(1)), roi: parseFloat(roi.toFixed(1)), isValue: edge >
+                    0 };
+        }
+
+        function kellyFraction(modelProb, bkOdds) {
+            if (!bkOdds || bkOdds <= 0 || modelProb <= 0) return null;
+            const b = bkOdds - 1;
+            const f = (modelProb * b - (1 - modelProb)) / b;
+            return Math.max(0, parseFloat((f * 100).toFixed(1)));
+        }
+
+        function valueHTML(modelProb, bkOdds) {
+            if (!bkOdds || bkOdds <= 0) return '<span class="muted">—</span>';
+            const val = calcValue(modelProb, bkOdds);
+            if (!val) return '<span class="muted">—</span>';
+            if (val.isValue && val.edgePercent > 3)
+                return `<span class="value-box value-positive">+${val.edgePercent}%<br><small>ROI ${val.roi}%</small></span>`;
+            if (val.isValue && val.edgePercent > 0)
+                return `<span class="value-box value-neutral">+${val.edgePercent}%<br><small>ROI ${val.roi}%</small></span>`;
+            return `<span class="value-box value-negative">${val.edgePercent}%<br><small>ROI ${val.roi}%</small></span>`;
+        }
+
+        function kellyHTML(modelProb, bkOdds, bank) {
+            const f = kellyFraction(modelProb, bkOdds);
+            if (f === null) return '<span class="muted">—</span>';
+            const amount = (bank * f / 100).toFixed(0);
+            return `<span class="text-green">${f}%</span><br><small class="muted">${amount} ₽</small>`;
+        }
+
+        function verdictHTML(modelProb, threshold, bkOdds) {
+            const val = calcValue(modelProb, bkOdds);
+            const meets = modelProb >= threshold;
+            const hasVal = val && val.isValue;
+            if (meets && hasVal) return '<span class="badge badge-green">БРАТЬ</span>';
+            if (meets && !hasVal) return '<span class="badge badge-amber">РИСК</span>';
+            if (!meets && hasVal) return '<span class="badge badge-blue">Ниже</span>';
+            return '<span class="badge badge-red">ПРОПУСК</span>';
+        }
+
+        // ============================================================
+        // АВТОПЕРЕСЧЁТ ПРИ ЛЮБОМ ИЗМЕНЕНИИ
+        // ============================================================
+        function autoCalculate() {
+            calcAverages();
+            calcLambda();
+        }
+
+        function calcAverages() {
+            const hm = parseInt(document.getElementById('homeMatches').value) || 1;
+            const hst = parseInt(document.getElementById('homeScoredTotal').value) || 0;
+            const hct = parseInt(document.getElementById('homeConcededTotal').value) || 0;
+            const am = parseInt(document.getElementById('awayMatches').value) || 1;
+            const ast = parseInt(document.getElementById('awayScoredTotal').value) || 0;
+            const act = parseInt(document.getElementById('awayConcededTotal').value) || 0;
+            document.getElementById('homeScoredAvg').value = (hst / hm).toFixed(2);
+            document.getElementById('homeConcededAvg').value = (hct / hm).toFixed(2);
+            document.getElementById('awayScoredAvg').value = (ast / am).toFixed(2);
+            document.getElementById('awayConcededAvg').value = (act / am).toFixed(2);
+        }
+
+        function calcLambda() {
+            const hs = parseFloat(document.getElementById('homeScoredAvg').value) || 0;
+            const hc = parseFloat(document.getElementById('homeConcededAvg').value) || 0;
+            const as = parseFloat(document.getElementById('awayScoredAvg').value) || 0;
+            const ac = parseFloat(document.getElementById('awayConcededAvg').value) || 0;
+            const leagueAvg = parseFloat(document.getElementById('leagueAvg').value) || 2.8;
+            const homeAdv = parseFloat(document.getElementById('homeAdvantage').value) || 1.15;
+            let lamHome = (hs + ac) / 2 * homeAdv;
+            let lamAway = (as + hc) / 2;
+            const raw = lamHome + lamAway;
+            if (raw > 0 && leagueAvg > 0) { const s = leagueAvg / raw;
+                lamHome *= s;
+                lamAway *= s; }
+            document.getElementById('lamHomeResult').value = lamHome.toFixed(2);
+            document.getElementById('lamAwayResult').value = lamAway.toFixed(2);
+            calculateAll();
+        }
+
+        // ============================================================
+        // ГРАФИК
+        // ============================================================
+        let chartInstance = null;
+
+        function drawChart(totals) {
+            const ctx = document.getElementById('totalsChart').getContext('2d');
+            const labels = Object.keys(totals).sort((a, b) => a - b);
+            const data = labels.map(k => +(totals[k] * 100).toFixed(1));
+            if (chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{ label: '%', data, backgroundColor: data.map(v => v > 18 ? '#9ece6a' : v >
+                            10 ? '#e0af68' : '#252b36'), borderRadius: 4 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#1e2430' }, ticks: { color: '#6b7385',
+                                callback: v => v + '%' } },
+                        x: { grid: { color: '#1e2430' }, ticks: { color: '#6b7385' } }
+                    }
+                }
+            });
+        }
+
+        // ============================================================
+        // ТЕПЛОВАЯ КАРТА (УЛУЧШЕННАЯ)
+        // ============================================================
+        function drawHeatmap(matrix) {
+            const maxG = 7;
+            const maxProb = Math.max(...Object.values(matrix));
+            let html = '<div class="heatmap">';
+
+            // Заголовок
+            html += '<div class="heatmap-label"></div>';
+            for (let j = 0; j < maxG; j++) html += `<div class="heatmap-label">Г${j}</div>`;
+            html += `<div class="heatmap-label">${maxG}+</div>`;
+
+            for (let i = 0; i < maxG; i++) {
+                html += `<div class="heatmap-label">Х${i}</div>`;
+                for (let j = 0; j < maxG; j++) {
+                    const prob = matrix[`${i}:${j}`] || 0;
+                    const ratio = maxProb > 0 ? prob / maxProb : 0;
+                    let bg, color;
+                    if (ratio > 0.85) { bg = '#9ece6a';
+                        color = '#0a0e14'; } else if (ratio > 0.65) { bg = '#7ab648';
+                        color = '#0a0e14'; } else if (ratio > 0.45) { bg = '#5a8a2e';
+                        color = '#fff'; } else if (ratio > 0.25) { bg = '#3a5a1e';
+                        color = '#b4c0d0'; } else if (ratio > 0.10) { bg = '#1e3010';
+                        color = '#6b7385'; } else { bg = '#131820';
+                        color = '#4a5058'; }
+                    html +=
+                        `<div class="heatmap-cell" style="background:${bg}; color:${color}">${(prob*100).toFixed(1)}%</div>`;
+                }
+                let p6 = 0;
+                for (let j = maxG; j <= 8; j++) p6 += matrix[`${i}:${j}`] || 0;
+                const r6 = maxProb > 0 ? p6 / maxProb : 0;
+                html +=
+                    `<div class="heatmap-cell" style="background:${r6>0.1?'#1e3010':'#131820'}; color:${r6>0.1?'#6b7385':'#4a5058'}">${(p6*100).toFixed(1)}%</div>`;
+            }
+
+            html += `<div class="heatmap-label">Х${maxG}+</div>`;
+            for (let j = 0; j < maxG; j++) {
+                let p6 = 0;
+                for (let i = maxG; i <= 8; i++) p6 += matrix[`${i}:${j}`] || 0;
+                html +=
+                    `<div class="heatmap-cell" style="background:#131820; color:#4a5058">${(p6*100).toFixed(1)}%</div>`;
+            }
+            html += '<div class="heatmap-cell" style="background:#131820; color:#4a5058">—</div>';
+            html += '</div>';
+            document.getElementById('heatmapContainer').innerHTML = html;
+        }
+
+        // ============================================================
+        // ТОЧНЫЕ СЧЕТА
+        // ============================================================
+        function drawExactScores(matrix) {
+            const sorted = Object.entries(matrix)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 12);
+            let html = '';
+            for (let [score, prob] of sorted) {
+                const pct = (prob * 100).toFixed(1);
+                html +=
+                    `<div class="score-item"><div class="score-text">${score}</div><div class="score-prob">${pct}%</div></div>`;
+            }
+            document.getElementById('exactScoresGrid').innerHTML = html;
+        }
+
+        // ============================================================
+        // СИМУЛЯЦИЯ ЛЕСЕНКИ
+        // ============================================================
+        function simulateLadder(matrixDC, bkOdds) {
+            const oneX = oneXProb(matrixDC),
+                bttsDC = bttsProb(matrixDC),
+                totalsDC = getTotals(matrixDC),
+                under35 = underProb(totalsDC, 3.5);
+            const markets = [{ prob: bttsDC, bk: bkOdds.btts }, { prob: under35, bk: bkOdds.under35 }];
+            let best = markets[0];
+            for (let m of markets) { const vM = calcValue(m.prob, m.bk); if (vM && (!calcValue(best.prob, best.bk) ||
+                    vM.edgePercent > calcValue(best.prob, best.bk).edgePercent)) best = m; }
+            const stepProb = oneX * best.prob,
+                ladderProb = Math.pow(stepProb, 3);
+            document.getElementById('stepProb').textContent = (stepProb * 100).toFixed(1) + '%';
+            document.getElementById('ladderProb').textContent = (ladderProb * 100).toFixed(1) + '%';
+            const levels = [{ name: '5 линий', lines: 5 }, { name: '7 линий', lines: 7 }, { name: '10 линий',
+                lines: 10 }, { name: '12 линий', lines: 12 }];
+            let simHTML =
+                '<table><thead><tr><th>Линий</th><th>P(≥1 успех)</th><th>P(≥2)</th></tr></thead><tbody>';
+            for (let lvl of levels) {
+                const p0 = Math.pow(1 - ladderProb, lvl.lines),
+                    p1 = lvl.lines * ladderProb * Math.pow(1 - ladderProb, lvl.lines - 1);
+                const pAtLeast1 = (1 - p0) * 100,
+                    pAtLeast2 = (1 - p0 - p1) * 100;
+                simHTML +=
+                    `<tr><td>${lvl.name}</td><td><strong class="${pAtLeast1>50?'text-green':'text-red'}">${pAtLeast1.toFixed(1)}%</strong></td><td>${pAtLeast2.toFixed(1)}%</td></tr>`;
+            }
+            simHTML += '</tbody></table>';
+            document.getElementById('cycleSimContainer').innerHTML = simHTML;
+        }
+
+        // ============================================================
+        // ИСТОРИЯ
+        // ============================================================
+        function addHistory(lamH, lamA, mP, mDC, bk) {
+            let history = JSON.parse(localStorage.getItem('calcHistory') || '[]');
+            const totalsP = getTotals(mP),
+                totalsDC = getTotals(mDC);
+            const over25P = overProb(totalsP, 2.5),
+                over25DC = overProb(totalsDC, 2.5);
+            const bttsDC = bttsProb(mDC),
+                oneXDC = oneXProb(mDC);
+            let hasVal = false;
+            for (let c of [{ p: over25DC, bk: bk.over25 }, { p: bttsDC, bk: bk.btts }, { p: oneXDC, bk: bk
+                    .oneX }]) { const v = calcValue(c.p, c.bk); if (v && v.isValue) { hasVal = true; break; } }
+            history.unshift({ time: new Date().toLocaleTimeString(), lamH: lamH.toFixed(2), lamA: lamA.toFixed(2),
+                over25P: (over25P * 100).toFixed(1), over25DC: (over25DC * 100).toFixed(1), btts: (bttsDC * 100)
+                    .toFixed(1), oneX: (oneXDC * 100).toFixed(1), hasValue: hasVal });
+            if (history.length > 10) history.pop();
+            localStorage.setItem('calcHistory', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const history = JSON.parse(localStorage.getItem('calcHistory') || '[]');
+            document.getElementById('historyTable').innerHTML = history.map(h =>
+                `<tr><td>${h.time}</td><td>${h.lamH}</td><td>${h.lamA}</td><td>${h.over25P}%</td><td>${h.over25DC}%</td><td>${h.btts}%</td><td>${h.oneX}%</td><td>${h.hasValue?'🟢':'—'}</td></tr>`
+                ).join('');
+        }
+
+        function clearHistory() { localStorage.removeItem('calcHistory');
+            renderHistory(); }
+
+        // ============================================================
+        // ПОЛНЫЙ ПЕРЕСЧЁТ ВСЕХ ТАБЛИЦ
+        // ============================================================
+        function calculateAll() {
+            const lamH = parseFloat(document.getElementById('lamHomeResult').value) || 1.8;
+            const lamA = parseFloat(document.getElementById('lamAwayResult').value) || 0.9;
+            const rho = parseFloat(document.getElementById('rho').value) || 0.10;
+            const bank = parseFloat(document.getElementById('kellyBank').value) || 5000;
+            const bk = {
+                over25: parseFloat(document.getElementById('bkOver25').value) || 0,
+                under35: parseFloat(document.getElementById('bkUnder35').value) || 0,
+                btts: parseFloat(document.getElementById('bkBtts').value) || 0,
+                oneX: parseFloat(document.getElementById('bk1x').value) || 0
+            };
+
+            const matrixP = buildMatrix(lamH, lamA, 'poisson', rho);
+            const matrixDC = buildMatrix(lamH, lamA, 'dixoncoles', rho);
+            const totalsP = getTotals(matrixP),
+                totalsDC = getTotals(matrixDC);
+
+            function buildRows(totals) {
+                return [
+                    { label: 'ТБ 0.5', prob: overProb(totals, 0.5), bk: 0 },
+                    { label: 'ТБ 1.5', prob: overProb(totals, 1.5), bk: 0 },
+                    { label: 'ТБ 2.5', prob: overProb(totals, 2.5), bk: bk.over25 },
+                    { label: 'ТБ 3.5', prob: overProb(totals, 3.5), bk: 0 },
+                    { label: 'ТМ 2.5', prob: underProb(totals, 2.5), bk: 0 },
+                    { label: 'ТМ 3.5', prob: underProb(totals, 3.5), bk: bk.under35 }
+                ].map(t =>
+                    `<tr><td><strong>${t.label}</strong></td><td><strong>${(t.prob*100).toFixed(1)}%</strong></td><td>${fairOdds(t.prob)}</td><td>${t.bk>0?t.bk:'<span class="muted">—</span>'}</td><td>${valueHTML(t.prob,t.bk)}</td><td>${kellyHTML(t.prob,t.bk,bank)}</td></tr>`
+                    ).join('');
+            }
+            document.getElementById('poissonTotalsTable').innerHTML = buildRows(totalsP);
+            document.getElementById('dcTotalsTable').innerHTML = buildRows(totalsDC);
+
+            // Исходы
+            let homeWin = 0,
+                draw = 0,
+                awayWin = 0;
+            for (let s in matrixDC) { let [i, j] = s.split(':').map(Number); if (i > j) homeWin += matrixDC[s];
+                else if (i === j) draw += matrixDC[s];
+                else awayWin += matrixDC[s]; }
+            const oneXVal = homeWin + draw,
+                x2Val = draw + awayWin;
+            document.getElementById('outcomeP1').textContent = (homeWin * 100).toFixed(1) + '%';
+            document.getElementById('outcomeOddsP1').textContent = 'кф ' + fairOdds(homeWin);
+            document.getElementById('outcomeX').textContent = (draw * 100).toFixed(1) + '%';
+            document.getElementById('outcomeOddsX').textContent = 'кф ' + fairOdds(draw);
+            document.getElementById('outcomeP2').textContent = (awayWin * 100).toFixed(1) + '%';
+            document.getElementById('outcomeOddsP2').textContent = 'кф ' + fairOdds(awayWin);
+            document.getElementById('outcome1X').textContent = (oneXVal * 100).toFixed(1) + '% (кф ' + fairOdds(
+            oneXVal) + ')';
+            document.getElementById('outcomeX2').textContent = (x2Val * 100).toFixed(1) + '% (кф ' + fairOdds(
+            x2Val) + ')';
+
+            // Рынки для стратегии
+            const bttsDC = bttsProb(matrixDC),
+                oneXDC = oneXProb(matrixDC),
+                under35DC = underProb(totalsDC, 3.5);
+            document.getElementById('marketsTable').innerHTML = [
+                { name: 'Обе забьют', prob: bttsDC, bk: bk.btts, threshold: 0.62, badge: 'badge-green' },
+                { name: '1X', prob: oneXDC, bk: bk.oneX, threshold: 0.73, badge: 'badge-blue' },
+                { name: 'ТМ 3.5', prob: under35DC, bk: bk.under35, threshold: 0.76, badge: 'badge-blue' }
+            ].map(m =>
+                `<tr><td><span class="badge ${m.badge}">${m.name}</span></td><td><strong>${(m.prob*100).toFixed(1)}%</strong></td><td>${fairOdds(m.prob)}</td><td>${m.bk>0?m.bk:'<span class="muted">—</span>'}</td><td>${valueHTML(m.prob,m.bk)}</td><td>${verdictHTML(m.prob,m.threshold,m.bk)}</td></tr>`
+                ).join('');
+
+            drawHeatmap(matrixDC);
+            drawExactScores(matrixDC);
+            drawChart(totalsDC);
+            simulateLadder(matrixDC, bk);
+            addHistory(lamH, lamA, matrixP, matrixDC, bk);
+        }
+
+        // ============================================================
+        // ЗАПУСК ПРИ ЗАГРУЗКЕ
+        // ============================================================
+        window.addEventListener('DOMContentLoaded', () => {
+            renderHistory();
+            autoCalculate();
+        });
+    </script>
+</body>
+</html>
